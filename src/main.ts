@@ -3,19 +3,25 @@ import { AppModule } from './app.module';
 import * as dgram from 'dgram';
 import { PrismaService } from './prisma.service';
 
+const DEFAULT_PORT = 8080;
+const PDF_ID_PREFIX = 'pdf_id=';
+const UDP_ERROR_RESPONSE = 'ERROR\n';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
-  
-  const mainPort = process.env.PORT ? parseInt(process.env.PORT) : 8080;
-  
-  // Запускаем HTTP-сервер на основном порту (TCP 8080)
+
+  const mainPort = process.env.PORT ? parseInt(process.env.PORT) : DEFAULT_PORT;
+  const baseUrl = process.env.BASE_URL || `http://localhost:${mainPort}`;
+
   await app.listen(mainPort, '0.0.0.0');
   console.log(`HTTP Server is running on port ${mainPort}`);
 
-  // Запускаем UDP-сервер на том же порту (UDP 8080)
+  // Prisma получаем один раз — не на каждый UDP-пакет
+  const prisma = app.get(PrismaService);
+
   const udpServer = dgram.createSocket('udp4');
-  
+
   udpServer.on('error', (err) => {
     console.error(`[UDP] Server error:\n${err.stack}`);
     udpServer.close();
@@ -23,22 +29,19 @@ async function bootstrap() {
 
   udpServer.on('message', (msg, rinfo) => {
     const message = msg.toString();
-    
-    // Если запрос начинается с "pdf_id=", это сырой UDP-запрос от C++
-    if (message.startsWith('pdf_id=')) {
-      const pdfId = message.replace('pdf_id=', '').trim();
-      console.log(`[UDP] Received raw ping for pdfId: ${pdfId} from ${rinfo.address}:${rinfo.port}`);
-      
-      const prisma = app.get(PrismaService);
-      prisma.pdfRecord.update({
-        where: { id: pdfId },
-        data: { lastPingAt: new Date() }
-      }).then((record) => {
-        // Формируем полную абсолютную HTTP ссылку (берётся из BASE_URL в .env)
-        const baseUrl = process.env.BASE_URL || `http://localhost:${mainPort}`;
+
+    if (!message.startsWith(PDF_ID_PREFIX)) {
+      console.log(`[UDP] Unknown data from ${rinfo.address}:${rinfo.port}: ${message}`);
+      return;
+    }
+
+    const pdfId = message.replace(PDF_ID_PREFIX, '').trim();
+    console.log(`[UDP] Ping for pdfId: ${pdfId} from ${rinfo.address}:${rinfo.port}`);
+
+    prisma.pdfRecord
+      .update({ where: { id: pdfId }, data: { lastPingAt: new Date() } })
+      .then((record) => {
         const pdfLink = `${baseUrl}/pdf/raw/${record.modifiedName}`;
-        
-        // Отправляем ссылку обратно по UDP
         const responseMsg = Buffer.from(`${pdfLink}\n`);
         udpServer.send(responseMsg, rinfo.port, rinfo.address, (err) => {
           if (err) {
@@ -47,15 +50,11 @@ async function bootstrap() {
             console.log(`[UDP] Sent link to ${rinfo.address}:${rinfo.port}`);
           }
         });
-      }).catch(err => {
+      })
+      .catch((err) => {
         console.error('[UDP] Error updating record:', err);
-        const errorMsg = Buffer.from('ERROR\n');
-        udpServer.send(errorMsg, rinfo.port, rinfo.address);
+        udpServer.send(Buffer.from(UDP_ERROR_RESPONSE), rinfo.port, rinfo.address);
       });
-    } else {
-      // Любые другие данные, присланные по UDP, просто выводим в консоль
-      console.log(`[UDP] Data from ${rinfo.address}:${rinfo.port}: ${message}`);
-    }
   });
 
   udpServer.on('listening', () => {
@@ -65,4 +64,5 @@ async function bootstrap() {
 
   udpServer.bind(mainPort);
 }
+
 bootstrap();

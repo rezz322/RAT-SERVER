@@ -1,6 +1,9 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
+/** Устройство считается онлайн если последний пинг был не позже 5 минут назад */
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class PingService {
   constructor(private readonly prisma: PrismaService) {}
@@ -41,7 +44,7 @@ export class PingService {
     });
     const now = new Date();
     return records.map((r) => {
-      const isOnline = now.getTime() - r.lastPingAt.getTime() < 5 * 60 * 1000;
+      const isOnline = now.getTime() - r.lastPingAt.getTime() < ONLINE_THRESHOLD_MS;
       const displayLastPingAt = r.lastPingAt.getTime() === 0 ? null : r.lastPingAt;
       return {
         id: r.id,

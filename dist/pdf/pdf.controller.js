@@ -73,7 +73,7 @@ let PdfController = class PdfController {
         res.setHeader('Content-Type', 'application/pdf');
         return res.sendFile(filePath);
     }
-    async downloadPdf(filename, pdfIdQuery, res) {
+    async downloadPdf(filename, res) {
         const id = await this.pdfService.resolveViewId(filename);
         return res.redirect(`/view/${id}`);
     }
@@ -132,10 +132,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('pdf/:filename'),
     __param(0, (0, common_1.Param)('filename')),
-    __param(1, (0, common_1.Query)('pdfId')),
-    __param(2, (0, common_1.Res)()),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], PdfController.prototype, "downloadPdf", null);
 __decorate([

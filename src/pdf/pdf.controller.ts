@@ -5,7 +5,6 @@ import {
   UseInterceptors,
   UploadedFile,
   Param,
-  Query,
   Res,
   HttpStatus,
   HttpException,
@@ -74,7 +73,6 @@ export class PdfController {
   @Get('pdf/:filename')
   async downloadPdf(
     @Param('filename') filename: string,
-    @Query('pdfId') pdfIdQuery: string,
     @Res() res: Response,
   ) {
     const id = await this.pdfService.resolveViewId(filename);

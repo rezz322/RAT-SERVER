@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PingService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma.service");
+const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
 let PingService = class PingService {
     prisma;
     constructor(prisma) {
@@ -47,7 +48,7 @@ let PingService = class PingService {
         });
         const now = new Date();
         return records.map((r) => {
-            const isOnline = now.getTime() - r.lastPingAt.getTime() < 5 * 60 * 1000;
+            const isOnline = now.getTime() - r.lastPingAt.getTime() < ONLINE_THRESHOLD_MS;
             const displayLastPingAt = r.lastPingAt.getTime() === 0 ? null : r.lastPingAt;
             return {
                 id: r.id,
