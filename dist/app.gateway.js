@@ -16,6 +16,8 @@ exports.AppGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 const prisma_service_1 = require("./prisma.service");
+const WS_PORT = parseInt(process.env.WS_PORT || process.env.PORT || '8080');
+const WS_CORS_ORIGIN = process.env.BASE_URL || '*';
 let AppGateway = class AppGateway {
     prisma;
     constructor(prisma) {
@@ -61,7 +63,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AppGateway.prototype, "handleRegister", null);
 exports.AppGateway = AppGateway = __decorate([
-    (0, websockets_1.WebSocketGateway)({ cors: true }),
+    (0, websockets_1.WebSocketGateway)(WS_PORT, { cors: { origin: WS_CORS_ORIGIN } }),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], AppGateway);
 //# sourceMappingURL=app.gateway.js.map

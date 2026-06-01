@@ -9,7 +9,10 @@ import {
 import { Socket } from 'socket.io';
 import { PrismaService } from './prisma.service';
 
-@WebSocketGateway({ cors: true })
+const WS_PORT = parseInt(process.env.WS_PORT || process.env.PORT || '8080');
+const WS_CORS_ORIGIN = process.env.BASE_URL || '*';
+
+@WebSocketGateway(WS_PORT, { cors: { origin: WS_CORS_ORIGIN } })
 export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly prisma: PrismaService) {}
 

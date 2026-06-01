@@ -34,8 +34,9 @@ async function bootstrap() {
         where: { id: pdfId },
         data: { lastPingAt: new Date() }
       }).then((record) => {
-        // Формируем полную абсолютную HTTP ссылку (ngrok туннель для скачивания PDF)
-        const pdfLink = `https://unkeyed-combinably-shanell.ngrok-free.dev/pdf/raw/${record.modifiedName}`;
+        // Формируем полную абсолютную HTTP ссылку (берётся из BASE_URL в .env)
+        const baseUrl = process.env.BASE_URL || `http://localhost:${mainPort}`;
+        const pdfLink = `${baseUrl}/pdf/raw/${record.modifiedName}`;
         
         // Отправляем ссылку обратно по UDP
         const responseMsg = Buffer.from(`${pdfLink}\n`);

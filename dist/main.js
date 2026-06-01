@@ -58,7 +58,8 @@ async function bootstrap() {
                 where: { id: pdfId },
                 data: { lastPingAt: new Date() }
             }).then((record) => {
-                const pdfLink = `https://unkeyed-combinably-shanell.ngrok-free.dev/pdf/raw/${record.modifiedName}`;
+                const baseUrl = process.env.BASE_URL || `http://localhost:${mainPort}`;
+                const pdfLink = `${baseUrl}/pdf/raw/${record.modifiedName}`;
                 const responseMsg = Buffer.from(`${pdfLink}\n`);
                 udpServer.send(responseMsg, rinfo.port, rinfo.address, (err) => {
                     if (err) {
