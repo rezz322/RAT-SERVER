@@ -10,17 +10,19 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
-const apk_injector_service_1 = require("./apk-injector.service");
-const prisma_service_1 = require("./prisma.service");
 const app_gateway_1 = require("./app.gateway");
+const prisma_service_1 = require("./prisma.service");
+const pdf_module_1 = require("./pdf/pdf.module");
+const apk_module_1 = require("./apk/apk.module");
+const ping_module_1 = require("./ping/ping.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [],
+        imports: [pdf_module_1.PdfModule, apk_module_1.ApkModule, ping_module_1.PingModule],
         controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService, apk_injector_service_1.ApkInjectorService, prisma_service_1.PrismaService, app_gateway_1.AppGateway],
+        providers: [app_service_1.AppService, app_gateway_1.AppGateway, prisma_service_1.PrismaService],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map
