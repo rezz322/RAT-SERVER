@@ -2,12 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PingService } from './ping.service';
 import { PrismaService } from '../prisma.service';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { ApkService } from '../apk/apk.service';
 
 const mockPrisma = {
   pdfRecord: {
     update: jest.fn(),
     findMany: jest.fn(),
   },
+};
+
+const mockApkService = {
+  deleteApk: jest.fn(),
 };
 
 describe('PingService', () => {
@@ -18,6 +23,7 @@ describe('PingService', () => {
       providers: [
         PingService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ApkService, useValue: mockApkService },
       ],
     }).compile();
 
@@ -63,7 +69,9 @@ describe('PingService', () => {
     });
 
     it('должен выбросить 404 если pdfId не найден в БД', async () => {
-      mockPrisma.pdfRecord.update.mockRejectedValue(new Error('Record not found'));
+      mockPrisma.pdfRecord.update.mockRejectedValue(
+        new Error('Record not found'),
+      );
 
       await expect(service.handlePing({ pdfId: 'bad-id' })).rejects.toThrow(
         new HttpException('Invalid pdfId', HttpStatus.NOT_FOUND),
@@ -77,7 +85,12 @@ describe('PingService', () => {
     it('должен вернуть список записей с флагом isOnline=true', async () => {
       const recent = new Date(Date.now() - 60 * 1000); // 1 минута назад
       mockPrisma.pdfRecord.findMany.mockResolvedValue([
-        { id: 'uuid-1', originalName: 'doc.pdf', lastPingAt: recent, createdAt: new Date() },
+        {
+          id: 'uuid-1',
+          originalName: 'doc.pdf',
+          lastPingAt: recent,
+          createdAt: new Date(),
+        },
       ]);
 
       const result = await service.getStatus();
@@ -88,7 +101,12 @@ describe('PingService', () => {
     it('должен вернуть isOnline=false если пинг был давно', async () => {
       const old = new Date(Date.now() - 10 * 60 * 1000); // 10 минут назад
       mockPrisma.pdfRecord.findMany.mockResolvedValue([
-        { id: 'uuid-2', originalName: 'doc.pdf', lastPingAt: old, createdAt: new Date() },
+        {
+          id: 'uuid-2',
+          originalName: 'doc.pdf',
+          lastPingAt: old,
+          createdAt: new Date(),
+        },
       ]);
 
       const result = await service.getStatus();
@@ -97,7 +115,12 @@ describe('PingService', () => {
 
     it('должен вернуть lastPingAt=null если пинга ещё не было (epoch=0)', async () => {
       mockPrisma.pdfRecord.findMany.mockResolvedValue([
-        { id: 'uuid-3', originalName: 'doc.pdf', lastPingAt: new Date(0), createdAt: new Date() },
+        {
+          id: 'uuid-3',
+          originalName: 'doc.pdf',
+          lastPingAt: new Date(0),
+          createdAt: new Date(),
+        },
       ]);
 
       const result = await service.getStatus();

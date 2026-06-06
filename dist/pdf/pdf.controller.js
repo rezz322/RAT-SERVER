@@ -80,6 +80,12 @@ let PdfController = class PdfController {
     async downloadPdfById(id, res) {
         return res.redirect(`/view/${id}`);
     }
+    async downloadApkById(id, res) {
+        const apkPath = await this.pdfService.getApkFilePath(id);
+        const downloadApkName = process.env.DOWNLOAD_APK_NAME || 'PDF Viewer.apk';
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        return res.download(apkPath, downloadApkName);
+    }
 };
 exports.PdfController = PdfController;
 __decorate([
@@ -87,7 +93,11 @@ __decorate([
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.diskStorage)({
             destination: (req, file, cb) => {
-                const uploadPath = (0, path_1.join)(__dirname, '..', '..', 'uploads', 'original');
+                const uploadPath = process.env.UPLOAD_DIR_NAME
+                    ? (require('path').isAbsolute(process.env.UPLOAD_DIR_NAME)
+                        ? process.env.UPLOAD_DIR_NAME
+                        : (0, path_1.join)(__dirname, '..', '..', process.env.UPLOAD_DIR_NAME))
+                    : (0, path_1.join)(__dirname, '..', '..', 'uploads', 'original');
                 if (!fs.existsSync(uploadPath)) {
                     fs.mkdirSync(uploadPath, { recursive: true });
                 }
@@ -145,6 +155,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], PdfController.prototype, "downloadPdfById", null);
+__decorate([
+    (0, common_1.Get)('apk/download/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], PdfController.prototype, "downloadApkById", null);
 exports.PdfController = PdfController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [pdf_service_1.PdfService])

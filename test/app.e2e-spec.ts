@@ -4,8 +4,6 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma.service';
-import * as path from 'path';
-import * as fs from 'fs';
 
 /**
  * E2E-тесты для всех HTTP-эндпоинтов.
@@ -79,7 +77,10 @@ describe('E2E — все эндпоинты', () => {
     it('должен вернуть 400 если тип файла не PDF', () => {
       return request(app.getHttpServer())
         .post('/pdf/upload')
-        .attach('file', Buffer.from('not a pdf'), { filename: 'test.txt', contentType: 'text/plain' })
+        .attach('file', Buffer.from('not a pdf'), {
+          filename: 'test.txt',
+          contentType: 'text/plain',
+        })
         .expect(400);
     });
 
@@ -89,7 +90,10 @@ describe('E2E — все эндпоинты', () => {
 
       const res = await request(app.getHttpServer())
         .post('/pdf/upload')
-        .attach('file', fakePdf, { filename: 'test.pdf', contentType: 'application/pdf' })
+        .attach('file', fakePdf, {
+          filename: 'test.pdf',
+          contentType: 'application/pdf',
+        })
         .expect(201);
 
       expect(res.body).toMatchObject({
@@ -115,7 +119,9 @@ describe('E2E — все эндпоинты', () => {
     it('должен вернуть 404 если запись не найдена', () => {
       mockPrisma.pdfRecord.findUnique.mockResolvedValue(null);
 
-      return request(app.getHttpServer()).get('/view/non-existent-id').expect(404);
+      return request(app.getHttpServer())
+        .get('/view/non-existent-id')
+        .expect(404);
     });
   });
 
@@ -134,7 +140,9 @@ describe('E2E — все эндпоинты', () => {
       mockPrisma.pdfRecord.findFirst.mockResolvedValue(null);
       mockPrisma.pdfRecord.findUnique.mockResolvedValue(null);
 
-      return request(app.getHttpServer()).get('/pdf/nonexistent.pdf').expect(404);
+      return request(app.getHttpServer())
+        .get('/pdf/nonexistent.pdf')
+        .expect(404);
     });
   });
 
@@ -150,39 +158,23 @@ describe('E2E — все эндпоинты', () => {
     });
   });
 
-  // ─── GET /apk/download ────────────────────────────────────────────────────────
-
-  describe('GET /apk/download', () => {
-    it('должен вернуть APK-файл с правильным Content-Type', async () => {
-      // Создаём временный APK-плейсхолдер если не существует
-      const apkDir = path.join(process.cwd(), 'apk');
-      const apkPath = path.join(apkDir, 'app.apk');
-      if (!fs.existsSync(apkDir)) fs.mkdirSync(apkDir, { recursive: true });
-      if (!fs.existsSync(apkPath)) fs.writeFileSync(apkPath, 'placeholder');
-
-      const res = await request(app.getHttpServer())
-        .get('/apk/download')
-        .expect(200);
-
-      expect(res.headers['content-type']).toContain('application/vnd.android.package-archive');
-      expect(res.headers['content-disposition']).toContain('AdobePlugin.apk');
-    });
-  });
-
   // ─── POST /api/ping ───────────────────────────────────────────────────────────
 
   describe('POST /api/ping', () => {
     it('должен вернуть { success: true } при корректном pdfId', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/ping')
-        .send({ pdfId: MOCK_RECORD.id })
+        .send({ pdf_id: MOCK_RECORD.id })
         .expect(201);
 
       expect(res.body).toEqual({ success: true });
     });
 
     it('должен вернуть 400 если pdfId не передан', () => {
-      return request(app.getHttpServer()).post('/api/ping').send({}).expect(400);
+      return request(app.getHttpServer())
+        .post('/api/ping')
+        .send({})
+        .expect(400);
     });
 
     it('должен вернуть 404 если pdfId не найден', () => {
@@ -190,7 +182,7 @@ describe('E2E — все эндпоинты', () => {
 
       return request(app.getHttpServer())
         .post('/api/ping')
-        .send({ pdfId: 'bad-uuid' })
+        .send({ pdf_id: 'bad-uuid' })
         .expect(404);
     });
   });
@@ -199,7 +191,9 @@ describe('E2E — все эндпоинты', () => {
 
   describe('GET /api/status', () => {
     it('должен вернуть массив со статусом записей', async () => {
-      const res = await request(app.getHttpServer()).get('/api/status').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/status')
+        .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body[0]).toMatchObject({
@@ -215,7 +209,9 @@ describe('E2E — все эндпоинты', () => {
         { ...MOCK_RECORD, lastPingAt: new Date(Date.now() - 30_000) },
       ]);
 
-      const res = await request(app.getHttpServer()).get('/api/status').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/status')
+        .expect(200);
       expect(res.body[0].isOnline).toBe(true);
     });
 
@@ -224,7 +220,9 @@ describe('E2E — все эндпоинты', () => {
         { ...MOCK_RECORD, lastPingAt: new Date(Date.now() - 10 * 60_000) },
       ]);
 
-      const res = await request(app.getHttpServer()).get('/api/status').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/status')
+        .expect(200);
       expect(res.body[0].isOnline).toBe(false);
     });
 
@@ -233,14 +231,18 @@ describe('E2E — все эндпоинты', () => {
         { ...MOCK_RECORD, lastPingAt: new Date(0) },
       ]);
 
-      const res = await request(app.getHttpServer()).get('/api/status').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/status')
+        .expect(200);
       expect(res.body[0].lastPingAt).toBeNull();
     });
 
     it('должен вернуть пустой массив если записей нет', async () => {
       mockPrisma.pdfRecord.findMany.mockResolvedValue([]);
 
-      const res = await request(app.getHttpServer()).get('/api/status').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/status')
+        .expect(200);
       expect(res.body).toEqual([]);
     });
   });

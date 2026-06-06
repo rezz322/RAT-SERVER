@@ -1,7 +1,10 @@
 import { PrismaService } from '../prisma.service';
+import { ApkService } from '../apk/apk.service';
 export declare class PingService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly apkService;
+    private readonly logger;
+    constructor(prisma: PrismaService, apkService: ApkService);
     handlePing(body: any): Promise<{
         success: boolean;
     }>;

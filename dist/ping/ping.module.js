@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const ping_controller_1 = require("./ping.controller");
 const ping_service_1 = require("./ping.service");
 const prisma_service_1 = require("../prisma.service");
+const apk_module_1 = require("../apk/apk.module");
 let PingModule = class PingModule {
 };
 exports.PingModule = PingModule;
 exports.PingModule = PingModule = __decorate([
     (0, common_1.Module)({
+        imports: [apk_module_1.ApkModule],
         controllers: [ping_controller_1.PingController],
         providers: [ping_service_1.PingService, prisma_service_1.PrismaService],
     })

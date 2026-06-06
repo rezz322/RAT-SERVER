@@ -8,7 +8,10 @@ export class PingController {
 
   @Post('ping')
   async ping(@Body() body: any, @Req() req: any) {
-    console.log('Received ping from Android app:', { body, headers: req.headers });
+    console.log('Received ping from Android app:', {
+      body,
+      headers: req.headers,
+    });
     return this.pingService.handlePing(body);
   }
 

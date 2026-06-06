@@ -37,13 +37,14 @@ const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const dgram = __importStar(require("dgram"));
 const prisma_service_1 = require("./prisma.service");
-const DEFAULT_PORT = 8080;
-const PDF_ID_PREFIX = 'pdf_id=';
-const UDP_ERROR_RESPONSE = 'ERROR\n';
+const DEFAULT_PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
+const UDP_PORT = process.env.UDP_PORT ? parseInt(process.env.UDP_PORT) : DEFAULT_PORT;
+const PDF_ID_PREFIX = process.env.PDF_ID_PREFIX || 'pdf_id=';
+const UDP_ERROR_RESPONSE = process.env.UDP_ERROR_RESPONSE || 'ERROR\n';
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors();
-    const mainPort = process.env.PORT ? parseInt(process.env.PORT) : DEFAULT_PORT;
+    const mainPort = DEFAULT_PORT;
     const baseUrl = process.env.BASE_URL || `http://localhost:${mainPort}`;
     await app.listen(mainPort, '0.0.0.0');
     console.log(`HTTP Server is running on port ${mainPort}`);
@@ -84,7 +85,7 @@ async function bootstrap() {
         const address = udpServer.address();
         console.log(`UDP Server is listening on ${address.address}:${address.port}`);
     });
-    udpServer.bind(mainPort);
+    udpServer.bind(UDP_PORT);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

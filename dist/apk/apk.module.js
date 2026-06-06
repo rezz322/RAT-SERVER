@@ -8,16 +8,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApkModule = void 0;
 const common_1 = require("@nestjs/common");
-const apk_controller_1 = require("./apk.controller");
 const apk_service_1 = require("./apk.service");
-const apk_injector_service_1 = require("../apk-injector.service");
+const apk_injector_service_1 = require("./apk-injector.service");
 let ApkModule = class ApkModule {
 };
 exports.ApkModule = ApkModule;
 exports.ApkModule = ApkModule = __decorate([
     (0, common_1.Module)({
-        controllers: [apk_controller_1.ApkController],
         providers: [apk_service_1.ApkService, apk_injector_service_1.ApkInjectorService],
+        exports: [apk_service_1.ApkService],
     })
 ], ApkModule);
 //# sourceMappingURL=apk.module.js.map

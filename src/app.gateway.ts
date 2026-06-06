@@ -1,35 +1,90 @@
+import { Logger } from '@nestjs/common';
 import {
   WebSocketGateway,
+  WebSocketServer,
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { PrismaService } from './prisma.service';
+import { ApkService } from './apk/apk.service';
+import { buildEvents } from './build-events';
 
-const WS_PORT = parseInt(process.env.WS_PORT || process.env.PORT || '8080');
 const WS_CORS_ORIGIN = process.env.BASE_URL || '*';
 
-@WebSocketGateway(WS_PORT, { cors: { origin: WS_CORS_ORIGIN } })
-export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  constructor(private readonly prisma: PrismaService) {}
+@WebSocketGateway({ cors: { origin: WS_CORS_ORIGIN } })
+export class AppGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
+  public static readonly activeClients = new Set<string>();
+
+  private readonly logger = new Logger(AppGateway.name);
+
+  @WebSocketServer()
+  private server: Server;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly apkService: ApkService,
+  ) {}
+
+  /**
+   * Подписываемся на события сборки APK и транслируем их всем WebSocket-клиентам.
+   * Вызывается один раз при инициализации Gateway.
+   */
+  afterInit(): void {
+    buildEvents.on('apk_building', ({ pdfId }: { pdfId: string }) => {
+      this.server.emit('apk_building', {
+        pdfId,
+        message: `APK для ${pdfId} собирается...`,
+      });
+    });
+
+    buildEvents.on('apk_ready', ({ pdfId }: { pdfId: string }) => {
+      this.server.emit('apk_ready', {
+        pdfId,
+        message: `APK для ${pdfId} готов!`,
+      });
+    });
+
+    buildEvents.on(
+      'apk_error',
+      ({ pdfId, error }: { pdfId: string; error: string }) => {
+        this.server.emit('apk_error', {
+          pdfId,
+          error,
+          message: `Ошибка сборки APK для ${pdfId}`,
+        });
+      },
+    );
+  }
 
   handleConnection(client: Socket) {
-    console.log(`[WebSocket] Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id}`);
 
-    // Перехватываем все входящие события для логирования
     client.onAny((eventName, ...args) => {
-      // Игнорируем событие register, так как оно обрабатывается отдельно
       if (eventName !== 'register') {
-        console.log(`[WebSocket] Data from client ${client.id} (event: '${eventName}'):`, args);
+        this.logger.debug(
+          `Data from ${client.id} (event: '${eventName}'):`,
+          args,
+        );
       }
     });
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`[WebSocket] Client disconnected: ${client.id}`);
+    this.logger.log(`Client disconnected: ${client.id}`);
+    const pdfId = client.data?.pdfId;
+    if (pdfId) {
+      AppGateway.activeClients.delete(pdfId);
+      this.logger.log(
+        `Client ${client.id} (pdfId: ${pdfId}) removed from active connections.`,
+      );
+    }
   }
 
   @SubscribeMessage('register')
@@ -38,25 +93,34 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     if (!data || !data.pdfId) {
-      console.log(`[WebSocket] Client ${client.id} sent invalid register payload`);
+      console.log(
+        `[WebSocket] Client ${client.id} sent invalid register payload`,
+      );
       return;
     }
 
     try {
+      client.data = { pdfId: data.pdfId };
+      AppGateway.activeClients.add(data.pdfId);
+
       const record = await this.prisma.pdfRecord.update({
         where: { id: data.pdfId },
         data: { lastPingAt: new Date() },
       });
 
-      console.log(`[WebSocket] Client ${client.id} registered for PDF: ${record.originalName}`);
+      this.logger.log(
+        `Client ${client.id} registered for PDF: ${record.originalName}`,
+      );
 
-      // Отправляем ссылку на скачивание сырого PDF-файла
-      // Клиент получит это событие и сможет скачать файл по HTTP
-      const downloadUrl = `/pdf/raw/${record.modifiedName}`;
-      client.emit('pdf_file', { url: downloadUrl });
+      // Удаляем APK с диска — клиент уже подключился
+      this.apkService.deleteApk(data.pdfId, record.originalName);
 
+      // Отправляем ссылку на скачивание PDF
+      client.emit('pdf_file', { url: `/pdf/raw/${record.modifiedName}` });
     } catch (error) {
-      console.error(`[WebSocket] Error registering client ${client.id} (pdfId: ${data.pdfId}):`, error.message);
+      this.logger.error(
+        `Error registering client ${client.id} (pdfId: ${data.pdfId}): ${error.message}`,
+      );
     }
   }
 }

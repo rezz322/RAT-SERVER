@@ -21,7 +21,10 @@ let PingController = class PingController {
         this.pingService = pingService;
     }
     async ping(body, req) {
-        console.log('Received ping from Android app:', { body, headers: req.headers });
+        console.log('Received ping from Android app:', {
+            body,
+            headers: req.headers,
+        });
         return this.pingService.handlePing(body);
     }
     async status() {

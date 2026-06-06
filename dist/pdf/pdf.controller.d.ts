@@ -7,11 +7,11 @@ export declare class PdfController {
         message: string;
         originalFilename: string;
         pdfId: string;
-        downloadUrl: string;
         viewUrl: string;
     }>;
     viewPdf(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     downloadPdfRaw(filename: string, res: Response): Promise<void>;
     downloadPdf(filename: string, res: Response): Promise<void>;
     downloadPdfById(id: string, res: Response): Promise<void>;
+    downloadApkById(id: string, res: Response): Promise<void>;
 }

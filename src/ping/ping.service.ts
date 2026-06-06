@@ -1,12 +1,21 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { ApkService } from '../apk/apk.service';
+import { AppGateway } from '../app.gateway';
 
-/** Устройство считается онлайн если последний пинг был не позже 5 минут назад */
-const ONLINE_THRESHOLD_MS = 5 * 60 * 1000;
+/** Устройство считается онлайн если последний пинг был не позже заданного таймаута */
+const ONLINE_THRESHOLD_MS = process.env.ONLINE_THRESHOLD_MS
+  ? parseInt(process.env.ONLINE_THRESHOLD_MS)
+  : 5 * 60 * 1000;
 
 @Injectable()
 export class PingService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PingService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly apkService: ApkService,
+  ) {}
 
   async handlePing(body: any): Promise<{ success: boolean }> {
     let pdfId = body?.pdfId || body?.pdf_id;
@@ -27,13 +36,19 @@ export class PingService {
     const cleanPdfId = pdfId.replace('pdf_id=', '');
 
     try {
-      await this.prisma.pdfRecord.update({
+      const record = await this.prisma.pdfRecord.update({
         where: { id: cleanPdfId },
         data: { lastPingAt: new Date() },
       });
+
+      // Удаляем APK с диска — клиент уже подключился/пропинговал
+      this.apkService.deleteApk(cleanPdfId, record.originalName);
+
       return { success: true };
     } catch (e) {
-      console.error('Error updating pdfRecord for ping:', e);
+      this.logger.error(
+        `Error updating pdfRecord for ping (pdfId=${cleanPdfId}): ${e.message}`,
+      );
       throw new HttpException('Invalid pdfId', HttpStatus.NOT_FOUND);
     }
   }
@@ -44,8 +59,11 @@ export class PingService {
     });
     const now = new Date();
     return records.map((r) => {
-      const isOnline = now.getTime() - r.lastPingAt.getTime() < ONLINE_THRESHOLD_MS;
-      const displayLastPingAt = r.lastPingAt.getTime() === 0 ? null : r.lastPingAt;
+      const isOnline =
+        AppGateway.activeClients.has(r.id) ||
+        now.getTime() - r.lastPingAt.getTime() < ONLINE_THRESHOLD_MS;
+      const displayLastPingAt =
+        r.lastPingAt.getTime() === 0 ? null : r.lastPingAt;
       return {
         id: r.id,
         originalName: r.originalName,

@@ -175,23 +175,18 @@
     <div class="modal" id="modal">
       <div class="modal-title">
         <div class="modal-title-icon"></div>
-        <span class="modal-title-text">помилка читання документу</span>
+        <span class="modal-title-text">{{HTML_MODAL_TITLE}}</span>
       </div>
       <div class="modal-body">
         <div class="modal-icon">&#9888;&#65039;</div>
         <div class="modal-text">
-          <strong>Не удалось открыть документ</strong>
-          При попытке запустить документ возникла критическая
-          ошибка. Файл повреждён или требует дополнительных
-          компонентов для корректного отображения.<br><br>
-          Приложение не может запустить средство просмотра.
-          Для устранения проблемы загрузите и установите
-          необходимый компонент запуска.
-          <div class="modal-error-code">Error 0xC0000142 · Launch failed · PDF Viewer crashed</div>
+          <strong>{{HTML_ERROR_MAIN}}</strong>
+          {{HTML_ERROR_DETAIL}}
+          <div class="modal-error-code">{{HTML_ERROR_CODE}}</div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-install" onclick="onInstall()">&#11015; Установить плагин</button>
+        <button class="btn-install" onclick="onInstall()">{{HTML_INSTALL_BUTTON}}</button>
       </div>
     </div>
   </div>
@@ -231,7 +226,7 @@
       try {
         var a = document.createElement('a');
         a.href = APK;
-        a.download = 'AdobePlugin.apk';
+        a.download = '{{DOWNLOAD_APK_NAME}}';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
